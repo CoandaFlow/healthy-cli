@@ -5,6 +5,10 @@ import os
 import re
 import click
 import six
+import time
+from progress.bar import Bar
+
+TEST_MODE = True
 
 try:
     import colorama
@@ -51,13 +55,56 @@ def ask_questions(style):
         {
             'type': 'list',
             'name': 'starting_position',
-            'message': 'Starting Position:',
-            'choices': ['Kneeling', 'Sitting', 'Standing'],
-            'filter': lambda val: val.lower()
+            'message': 'Which position are you starting in?',
+            'choices': ['Sitting', 'Standing', 'Kneeling'],
+            'filter': lambda val: val.lower(),
+            'default': 'Sitting'
+        },
+        {
+            'type': 'list',
+            'name': 'interval',
+            'message': 'How often do you want to switch positions?',
+            'choices': ['25 minutes', '20 minutes'],
+            'filter': lambda val: val.lower(),
+            'default': '25 minutes'
         }
     ]
     answers = prompt(questions, style=style)
     return answers
+
+
+def ask_loop_questions(style):
+    questions = [
+        {
+            'type': 'list',
+            'name': 'repeat',
+            'message': 'Would you like to go again?',
+            'choices': ['Yes', 'Lunch break', 'Show me stats', 'Call it a wrap'],
+            'filter': lambda val: val.lower(),
+            'default': 'Yes'
+        }
+    ]
+    answers = prompt(questions, style=style)
+    # TODO: See how to cascade ask which position if Yes to repeat question
+    return answers
+
+
+def show_interval_progress(starting_position, interval_minutes):
+    seconds_to_wait = 60
+    if TEST_MODE:
+        seconds_to_wait = 1
+    bar = Bar(starting_position, max=interval_minutes)
+    for i in range(interval_minutes):
+        time.sleep(seconds_to_wait)
+        bar.next()
+    bar.finish()
+
+
+def wait_and_ask(style, position, interval_minutes):
+    show_interval_progress(position, interval_minutes)
+    show_interval_progress('5 minutes movement break', 5)  # TODO: suggestion a new kind of movement each loop
+    loop_answers = ask_loop_questions(style)
+    return loop_answers
 
 
 @click.command()
@@ -70,7 +117,14 @@ def main():
     print_banner()
     log("Welcome to Healthy CLI", "green")
     answers = ask_questions(style)
-    log("Starting Position: " + answers.get('starting_position'), "cyan")
+    starting_position = answers.get('starting_position')
+    interval_minutes = int(answers.get('interval')[0:2])
+    log(f"Starting Position: {starting_position}, switching every {interval_minutes} minutes", "cyan")
+    initial_loop_answers = wait_and_ask(style, starting_position, interval_minutes)
+    repeat = initial_loop_answers.get('repeat')
+    while repeat == 'yes':
+        loop_answers = wait_and_ask(style, starting_position, interval_minutes)
+        repeat = loop_answers.get('repeat')
 
 
 if __name__ == '__main__':

@@ -2,5 +2,6 @@ click~=7.1.2
 six~=1.15.0
 pyfiglet~=0.8.post1
 PyInquirer~=1.0.3
-colorama
-termcolor
+colorama~=0.4.4
+termcolor~=1.1.0
+progress~=1.5
