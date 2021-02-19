@@ -16,7 +16,6 @@ from playsound import playsound
 #import pyautogui
 
 
-TEST_MODE = True
 SOUNDS = [
     'EarlyRiser.mp3',
     'SlowMorning.mp3',
@@ -68,6 +67,11 @@ def log(string, color, font="banner3-D", figlet=False):
 def ask_questions(style):
     questions = [
         {
+            'type': 'confirm',
+            'name': 'testing',
+            'message': 'Are you testing healthy cli (I\'ll treat minutes as seconds)?'
+        },
+        {
             'type': 'list',
             'name': 'starting_position',
             'message': 'Which position are you starting in?',
@@ -112,9 +116,9 @@ def ask_loop_questions(style):
     return answers
 
 
-def show_interval_progress(starting_position, interval_minutes):
+def show_interval_progress(starting_position, interval_minutes, test_mode):
     seconds_to_wait = 60
-    if TEST_MODE:
+    if test_mode:
         seconds_to_wait = 1
     bar = Bar(starting_position, max=interval_minutes)
     for i in range(interval_minutes):
@@ -124,10 +128,11 @@ def show_interval_progress(starting_position, interval_minutes):
     playsound('sounds/' + SOUNDS[random.randint(0, 4)])
 
 
-def wait_and_ask(style, position, interval_minutes, include_movement_break=True):
-    show_interval_progress(f'{position} minutes', interval_minutes)
+def wait_and_ask(style, position, interval_minutes, include_movement_break=True, test_mode=False):
+    show_interval_progress(f'{position} minutes', interval_minutes, test_mode)
     if include_movement_break:
-        show_interval_progress('5 minutes movement break', 5)  # TODO: suggestion a new kind of movement each loop
+        show_interval_progress('5 minutes movement break', 5, test_mode)
+        # TODO: suggestion a new kind of movement each loop
     loop_answers = ask_loop_questions(style)
     return loop_answers.get('repeat'), loop_answers.get('new_position')
 
@@ -142,13 +147,15 @@ def main():
     print_banner()
     log("Welcome to Healthy CLI", "green")
     answers = ask_questions(style)
+    test_mode = answers.get('testing')
     starting_position = answers.get('starting_position')
     interval_minutes = int(answers.get('interval')[0:2])
     log(f"Starting Position: {starting_position}, switching every {interval_minutes} minutes", "cyan")
     new_position = starting_position
+    include_movement_break = True
 
     while True:
-        repeat, new_position = wait_and_ask(style, new_position, interval_minutes)
+        repeat, new_position = wait_and_ask(style, new_position, interval_minutes, include_movement_break, test_mode)
         if repeat == 'call it a wrap':
             log("Goodbye", "green")
             exit(0)
