@@ -3,12 +3,27 @@ from PyInquirer import (Token, ValidationError, Validator, print_json, prompt,
                         style_from_dict)
 import os
 import re
+import random
 import click
 import six
 import time
 from progress.bar import Bar
+from playsound import playsound
+# fails with runtime error
+# from pywinauto.application import Application
+
+# no window controls
+#import pyautogui
+
 
 TEST_MODE = True
+SOUNDS = [
+    'EarlyRiser.mp3',
+    'SlowMorning.mp3',
+    'Freshstart.mp3',
+    'Auratone.mp3',
+    'Softchime.mp3'
+]
 
 try:
     import colorama
@@ -64,7 +79,7 @@ def ask_questions(style):
             'type': 'list',
             'name': 'interval',
             'message': 'How often do you want to switch positions?',
-            'choices': ['25 minutes', '20 minutes'],
+            'choices': ['05 minutes', '25 minutes', '20 minutes'],
             'filter': lambda val: val.lower(),
             'default': '25 minutes'
         }
@@ -82,10 +97,18 @@ def ask_loop_questions(style):
             'choices': ['Yes', 'Lunch break', 'Show me stats', 'Call it a wrap'],
             'filter': lambda val: val.lower(),
             'default': 'Yes'
+        },
+        {
+            'type': 'list',
+            'name': 'new_position',
+            'message': 'Which position are you changing to?',
+            'choices': ['Sitting', 'Standing', 'Kneeling'],
+            'filter': lambda val: val.lower(),
+            'when': lambda ans: ans.get('repeat') == 'yes',
+            'default': 'Standing'
         }
     ]
     answers = prompt(questions, style=style)
-    # TODO: See how to cascade ask which position if Yes to repeat question
     return answers
 
 
@@ -98,13 +121,15 @@ def show_interval_progress(starting_position, interval_minutes):
         time.sleep(seconds_to_wait)
         bar.next()
     bar.finish()
+    playsound('sounds/' + SOUNDS[random.randint(0, 4)])
 
 
-def wait_and_ask(style, position, interval_minutes):
-    show_interval_progress(position, interval_minutes)
-    show_interval_progress('5 minutes movement break', 5)  # TODO: suggestion a new kind of movement each loop
+def wait_and_ask(style, position, interval_minutes, include_movement_break=True):
+    show_interval_progress(f'{position} minutes', interval_minutes)
+    if include_movement_break:
+        show_interval_progress('5 minutes movement break', 5)  # TODO: suggestion a new kind of movement each loop
     loop_answers = ask_loop_questions(style)
-    return loop_answers
+    return loop_answers.get('repeat'), loop_answers.get('new_position')
 
 
 @click.command()
@@ -120,11 +145,18 @@ def main():
     starting_position = answers.get('starting_position')
     interval_minutes = int(answers.get('interval')[0:2])
     log(f"Starting Position: {starting_position}, switching every {interval_minutes} minutes", "cyan")
-    initial_loop_answers = wait_and_ask(style, starting_position, interval_minutes)
-    repeat = initial_loop_answers.get('repeat')
-    while repeat == 'yes':
-        loop_answers = wait_and_ask(style, starting_position, interval_minutes)
-        repeat = loop_answers.get('repeat')
+    new_position = starting_position
+
+    while True:
+        repeat, new_position = wait_and_ask(style, new_position, interval_minutes)
+        if repeat == 'call it a wrap':
+            log("Goodbye", "green")
+            exit(0)
+        elif repeat == 'Show me stats':
+            log("stats coming soon", "yellow")
+        elif repeat == 'lunch break':
+            interval_minutes = 60
+            new_position = 'lunch time'
 
 
 if __name__ == '__main__':
