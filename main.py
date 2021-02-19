@@ -69,7 +69,7 @@ def ask_questions(style):
         {
             'type': 'confirm',
             'name': 'testing',
-            'message': 'Are you testing healthy cli (I\'ll treat minutes as seconds)?'
+            'message': 'Are you testing healthy cli (I\'ll treat minutes as quarter seconds)?'
         },
         {
             'type': 'list',
@@ -83,7 +83,7 @@ def ask_questions(style):
             'type': 'list',
             'name': 'interval',
             'message': 'How often do you want to switch positions?',
-            'choices': ['05 minutes', '25 minutes', '20 minutes'],
+            'choices': ['25 minutes', '20 minutes'],
             'filter': lambda val: val.lower(),
             'default': '25 minutes'
         }
@@ -119,12 +119,14 @@ def ask_loop_questions(style):
 def show_interval_progress(starting_position, interval_minutes, test_mode):
     seconds_to_wait = 60
     if test_mode:
-        seconds_to_wait = 1
+        seconds_to_wait = .25
     bar = Bar(starting_position, max=interval_minutes)
     for i in range(interval_minutes):
         time.sleep(seconds_to_wait)
         bar.next()
     bar.finish()
+    # TODO: These seem like they are a little loud, compared to my zoom call volumes,
+    #  normalize audio levels or see if the API supports playing at a lower volume
     playsound('sounds/' + SOUNDS[random.randint(0, 4)])
 
 
@@ -149,10 +151,11 @@ def main():
     answers = ask_questions(style)
     test_mode = answers.get('testing')
     starting_position = answers.get('starting_position')
-    interval_minutes = int(answers.get('interval')[0:2])
-    log(f"Starting Position: {starting_position}, switching every {interval_minutes} minutes", "cyan")
+    starting_interval_minutes = int(answers.get('interval')[0:2])
+    log(f"Starting Position: {starting_position}, switching every {starting_interval_minutes} minutes", "cyan")
     new_position = starting_position
     include_movement_break = True
+    interval_minutes = starting_interval_minutes
 
     while True:
         repeat, new_position = wait_and_ask(style, new_position, interval_minutes, include_movement_break, test_mode)
@@ -161,9 +164,12 @@ def main():
             exit(0)
         elif repeat == 'Show me stats':
             log("stats coming soon", "yellow")
+            interval_minutes = starting_interval_minutes
         elif repeat == 'lunch break':
             interval_minutes = 60
             new_position = 'lunch time'
+        else:
+            interval_minutes = starting_interval_minutes
 
 
 if __name__ == '__main__':
