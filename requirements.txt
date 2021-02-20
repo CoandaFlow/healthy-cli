@@ -8,4 +8,5 @@ progress~=1.5
 playsound~=1.2.2
 # pywinauto~=0.6.8
 # comtypes==1.1.7
-PyAutoGUI~=0.9.52
+# PyAutoGUI~=0.9.52
+win10toast~=0.9

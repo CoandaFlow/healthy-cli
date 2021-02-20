@@ -9,11 +9,40 @@ import six
 import time
 from progress.bar import Bar
 from playsound import playsound
-# fails with runtime error
-# from pywinauto.application import Application
 
 # no window controls
-#import pyautogui
+import pyautogui
+
+# is able to list window titles, and sometimes bring window to front, but also fails with 'Unknown error'
+#import win32gui
+
+# def windowEnumerationHandler(hwnd, top_windows):
+#     top_windows.append((hwnd, win32gui.GetWindowText(hwnd)))
+#
+# def show_window():
+#     top_windows = []
+#     win32gui.EnumWindows(windowEnumerationHandler, top_windows)
+#     for i in top_windows:
+#         # print("window title:", i[1])
+#         if "powershell" in i[1].lower():
+#             print(i)
+#             win32gui.ShowWindow(i[0], 5)
+#             win32gui.SetForegroundWindow(i[0])
+#             break
+
+# fails with runtime error
+# TypeError: item 2 in _argtypes_ passes a union by value, which is unsupported.
+# from pywinauto.application import Application
+# def show_window():
+#     app = Application(backend="uia").start("notepad.exe")
+#     app.UntitledNotepad.menu_select("Help->About Notepad")
+#     app.AboutNotepad.OK.click()
+#     app.UntitledNotepad.Edit.type_keys("pywinauto Works!", with_spaces=True)
+
+from win10toast import ToastNotifier
+def show_window(message):
+    toaster = ToastNotifier()
+    toaster.show_toast("Healthy-CLI", message)
 
 
 SOUNDS = [
@@ -38,6 +67,7 @@ except ImportError:
 
 
 def print_banner():
+    os.system('cls' if os.name == 'nt' else 'clear')
     log("Healthy CLI", color="cyan", figlet=True)
 
 
@@ -112,6 +142,7 @@ def ask_loop_questions(style):
             'default': 'Standing'
         }
     ]
+
     answers = prompt(questions, style=style)
     return answers
 
@@ -132,8 +163,10 @@ def show_interval_progress(starting_position, interval_minutes, test_mode):
 
 def wait_and_ask(style, position, interval_minutes, include_movement_break=True, test_mode=False):
     show_interval_progress(f'{position} minutes', interval_minutes, test_mode)
+    show_window('time to move')
     if include_movement_break:
-        show_interval_progress('5 minutes movement break', 5, test_mode)
+        show_interval_progress('5 minute movement break', 5, test_mode)
+        show_window('nice movement, you\'ve reached 5 minutes')
         # TODO: suggestion a new kind of movement each loop
     loop_answers = ask_loop_questions(style)
     return loop_answers.get('repeat'), loop_answers.get('new_position')
@@ -151,7 +184,11 @@ def main():
     answers = ask_questions(style)
     test_mode = answers.get('testing')
     starting_position = answers.get('starting_position')
-    starting_interval_minutes = int(answers.get('interval')[0:2])
+    starting_interval = answers.get('interval')
+    if starting_interval is None:
+        exit(1)
+    else:
+        starting_interval_minutes = int(answers.get('interval')[0:2])
     log(f"Starting Position: {starting_position}, switching every {starting_interval_minutes} minutes", "cyan")
     new_position = starting_position
     include_movement_break = True
@@ -168,8 +205,10 @@ def main():
         elif repeat == 'lunch break':
             interval_minutes = 60
             new_position = 'lunch time'
-        else:
+        elif repeat == 'yes':
             interval_minutes = starting_interval_minutes
+        else:
+            exit(1)
 
 
 if __name__ == '__main__':
