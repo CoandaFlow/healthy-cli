@@ -8,7 +8,16 @@ import click
 import six
 import time
 from progress.bar import Bar
-from playsound import playsound
+#from playsound import playsound
+import pygame
+
+
+# TODO: give shotout to pygame in credits if this is useful
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+pygame.init()
+pygame.mixer.init()
+
+
 
 # no window controls
 import pyautogui
@@ -39,10 +48,30 @@ import pyautogui
 #     app.AboutNotepad.OK.click()
 #     app.UntitledNotepad.Edit.type_keys("pywinauto Works!", with_spaces=True)
 
+# fails with runtime error at startup
+# KeyError: (<class 'ctypes.HRESULT'>, (<class 'comtypes.automation.tagVARIANT'>, <class 'comtypes.LP_POINTER(IDispatch)'>), 0)
+# from pywinauto.findwindows    import find_window
+# from pywinauto.win32functions import SetFocus
+
+# fails with no module named pywin32, even though with venv active and pip install pywin32 indicates 'requirement already satisfied'
+# need to track down these imports, think there was a module name change
+# from pywin32 import win32gui
+# from pywin32 import win32process
+# from pywin32 import win32api
 from win10toast import ToastNotifier
 def show_window(message):
+
     toaster = ToastNotifier()
     toaster.show_toast("Healthy-CLI", message)
+    # window = find_window(title='powershell.exe')
+    # SetFocus(window)
+    # fgwin = win32gui.GetForegroundWindow()
+    # fg = win32process.GetWindowThreadProcessId(fgwin)[0]
+    # current = win32api.GetCurrentThreadId()
+    # if current != fg:
+    #     win32process.AttachThreadInput(fg, current, True)
+    #     win32gui.SetForegroundWindow(self.hwnd)
+    #     win32process.AttachThreadInput(fg, win32api.GetCurrentThreadId(), False)
 
 
 SOUNDS = [
@@ -147,6 +176,18 @@ def ask_loop_questions(style):
     return answers
 
 
+def playsound(thepath, test_mode=False):
+    sound = pygame.mixer.Sound(thepath)
+    sound.set_volume(0.7)   # Now plays at 90% of full volume.
+    seconds_to_wait = 1
+    if test_mode:
+        seconds_to_wait = .25
+    clip_length = int(seconds_to_wait * 10)
+    sound.play(0, clip_length, 1500)
+    time.sleep(clip_length)
+    sound.fadeout(1500)
+
+
 def show_interval_progress(starting_position, interval_minutes, test_mode):
     seconds_to_wait = 60
     if test_mode:
@@ -158,7 +199,7 @@ def show_interval_progress(starting_position, interval_minutes, test_mode):
     bar.finish()
     # TODO: These seem like they are a little loud, compared to my zoom call volumes,
     #  normalize audio levels or see if the API supports playing at a lower volume
-    playsound('sounds/' + SOUNDS[random.randint(0, 4)])
+    playsound('sounds/' + SOUNDS[random.randint(0, 4)], test_mode)
 
 
 def wait_and_ask(style, position, interval_minutes, include_movement_break=True, test_mode=False):
