@@ -10,6 +10,7 @@ import time
 from progress.bar import Bar
 #from playsound import playsound
 import pygame
+import threading
 
 
 # TODO: give shotout to pygame in credits if this is useful
@@ -176,15 +177,25 @@ def ask_loop_questions(style):
     return answers
 
 
-def playsound(thepath, test_mode=False):
+def playsound(thepath, test_mode=False, wait_for_sound=False):
     sound = pygame.mixer.Sound(thepath)
     sound.set_volume(0.7)   # Now plays at 90% of full volume.
     seconds_to_wait = 1
     if test_mode:
         seconds_to_wait = .25
-    clip_length = int(seconds_to_wait * 10)
-    sound.play(0, clip_length, 1500)
-    time.sleep(clip_length)
+    clip_length = int(seconds_to_wait * 8)
+    clip_fade_out = clip_length - (1.5 * seconds_to_wait)
+    clip_length_ms = clip_length * 1000
+    clip_fade_out_ms = clip_fade_out * 1000
+    sound.play(0, clip_length_ms, 1500)
+
+    timer = threading.Timer(clip_fade_out, fade_out_sound, [sound])
+    timer.start()
+    if wait_for_sound:
+        time.sleep(clip_length)
+
+
+def fade_out_sound(sound):
     sound.fadeout(1500)
 
 
@@ -221,6 +232,7 @@ def main():
     """
     style = colorize()
     print_banner()
+    playsound('sounds/' + SOUNDS[0], False, False)
     log("Welcome to Healthy CLI", "green")
     answers = ask_questions(style)
     test_mode = answers.get('testing')
