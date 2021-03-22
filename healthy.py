@@ -12,12 +12,9 @@ from progress.bar import Bar
 import pygame
 import threading
 
-
-# TODO: give shotout to pygame in credits if this is useful
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
-pygame.init()
-pygame.mixer.init()
-
+test_mode = False
+loop_count = 0
+sound_clips = []
 
 
 # no window controls
@@ -82,6 +79,7 @@ SOUNDS = [
     'Auratone.mp3',
     'Softchime.mp3'
 ]
+
 
 try:
     import colorama
@@ -177,29 +175,37 @@ def ask_loop_questions(style):
     return answers
 
 
-def playsound(thepath, test_mode=False, wait_for_sound=False):
-    sound = pygame.mixer.Sound(thepath)
-    sound.set_volume(0.7)   # Now plays at 90% of full volume.
+def playsound(wait_for_sound=False, clip_index=-1):
+    if clip_index == -1 or clip_index > len(sound_clips):
+        clip_index = loop_count % len(sound_clips)
+    sound = sound_clips[clip_index]
+    print('playing sound', clip_index, sound)
+    sound.set_volume(0.7)   # Now plays at 70% of full volume.
     seconds_to_wait = 1
     if test_mode:
-        seconds_to_wait = .25
-    clip_length = int(seconds_to_wait * 8)
-    clip_fade_out = clip_length - (1.5 * seconds_to_wait)
+        seconds_to_wait = 1  #.25
+    fade_length = 1.5
+    fade_length_ms = int(fade_length * 1000)
+    clip_length = int(seconds_to_wait * 8) #only play 8s
+    clip_fade_out = clip_length - (fade_length * seconds_to_wait)
     clip_length_ms = clip_length * 1000
     clip_fade_out_ms = clip_fade_out * 1000
-    sound.play(0, clip_length_ms, 1500)
+    sound.play(0, clip_length_ms, fade_length_ms)
 
-    timer = threading.Timer(clip_fade_out, fade_out_sound, [sound])
-    timer.start()
+    # fadeout seems to work first time, and then no other sounds played are heard
+    # timer = threading.Timer(clip_fade_out, fade_out_sound, [sound])
+    # timer.start()
     if wait_for_sound:
-        time.sleep(clip_length)
+        time.sleep(clip_fade_out)
+        #sound.fadeout(fade_length_ms)
+        time.sleep(fade_length)
 
 
 def fade_out_sound(sound):
     sound.fadeout(1500)
 
 
-def show_interval_progress(starting_position, interval_minutes, test_mode):
+def show_interval_progress(starting_position, interval_minutes):
     seconds_to_wait = 60
     if test_mode:
         seconds_to_wait = .25
@@ -208,20 +214,35 @@ def show_interval_progress(starting_position, interval_minutes, test_mode):
         time.sleep(seconds_to_wait)
         bar.next()
     bar.finish()
-    # TODO: These seem like they are a little loud, compared to my zoom call volumes,
-    #  normalize audio levels or see if the API supports playing at a lower volume
-    playsound('sounds/' + SOUNDS[random.randint(0, 4)], test_mode)
+    playsound(True)
 
 
-def wait_and_ask(style, position, interval_minutes, include_movement_break=True, test_mode=False):
-    show_interval_progress(f'{position} minutes', interval_minutes, test_mode)
+def wait_and_ask(style, position, interval_minutes, include_movement_break=True):
+    show_interval_progress(f'{position} minutes', interval_minutes)
     show_window('time to move')
     if include_movement_break:
-        show_interval_progress('5 minute movement break', 5, test_mode)
+        if loop_count > 0:
+            movement_loop_count = loop_count - 1
+        else:
+            movement_loop_count = loop_count
+        show_interval_progress('5 minute movement break', 5)
         show_window('nice movement, you\'ve reached 5 minutes')
         # TODO: suggestion a new kind of movement each loop
     loop_answers = ask_loop_questions(style)
     return loop_answers.get('repeat'), loop_answers.get('new_position')
+
+
+def load_sounds():
+    global sound_clips
+    for sound_file in SOUNDS:
+        sound = pygame.mixer.Sound(f"sounds/{sound_file}")
+        sound.set_volume(0.7)
+        sound_clips.append(sound)
+
+
+def close_exit(status_code):
+    pygame.mixer.quit()
+    exit(status_code)
 
 
 @click.command()
@@ -230,16 +251,24 @@ def main():
     Healthy CLI is a command line utility to help you get healthier while coding.
     Helping you take care of your body, so you can avoid chronic issues from coding.
     """
+    global loop_count
+    global test_mode
+    # TODO: give shotout to pygame in credits if this is useful
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+    pygame.init()
+    pygame.mixer.init()
+    load_sounds()
     style = colorize()
     print_banner()
-    playsound('sounds/' + SOUNDS[0], False, False)
+    playsound(False, 1)
     log("Welcome to Healthy CLI", "green")
+    # TODO: ask the available positions, to avoid providing a position that is not available
     answers = ask_questions(style)
     test_mode = answers.get('testing')
     starting_position = answers.get('starting_position')
     starting_interval = answers.get('interval')
     if starting_interval is None:
-        exit(1)
+        close_exit(1)
     else:
         starting_interval_minutes = int(answers.get('interval')[0:2])
     log(f"Starting Position: {starting_position}, switching every {starting_interval_minutes} minutes", "cyan")
@@ -248,20 +277,23 @@ def main():
     interval_minutes = starting_interval_minutes
 
     while True:
-        repeat, new_position = wait_and_ask(style, new_position, interval_minutes, include_movement_break, test_mode)
+        repeat, new_position = wait_and_ask(style, new_position, interval_minutes, include_movement_break)
         if repeat == 'call it a wrap':
             log("Goodbye", "green")
-            exit(0)
+            close_exit(0)
         elif repeat == 'Show me stats':
-            log("stats coming soon", "yellow")
+            log("Stats coming soon", "yellow")
             interval_minutes = starting_interval_minutes
+            loop_count += 1
         elif repeat == 'lunch break':
             interval_minutes = 60
             new_position = 'lunch time'
+            loop_count += 1
         elif repeat == 'yes':
             interval_minutes = starting_interval_minutes
+            loop_count += 1
         else:
-            exit(1)
+            close_exit(1)
 
 
 if __name__ == '__main__':
